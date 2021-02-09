@@ -18,6 +18,7 @@ import (
 	"log"
 	"os"
 
+	git "github.com/go-git/go-git"
 	"github.com/google/go-github/github"
 )
 
@@ -36,6 +37,7 @@ var (
 
 var client *github.Client
 var ctx = context.Background()
+var url = "https://github.com/ministryofjustice/"
 
 func main() {
 	repos, err := getRepos()
@@ -43,17 +45,32 @@ func main() {
 		log.Fatalf("Unable to find file: %s\n", err)
 	}
 
-	client = github.NewClient(nil)
-
-	for _, r := range repos {
-		ref, err := getRef(r)
+	for _, repo := range repos {
+		// clone
+		fmt.Println(url + repo)
+		r, err := git.PlainClone("./", false, &git.CloneOptions{
+			URL:      url + repo,
+			Progress: os.Stdout,
+		})
 		if err != nil {
-			log.Fatalf("Unable to get/create the commit reference: %s\n", err)
+			log.Fatalf("Unable to clone repo: %s\n", err)
 		}
-		if ref == nil {
-			log.Fatalf("No error where returned but the reference is nil")
+
+		ref, err := r.Head()
+		if err != nil {
+			log.Fatalf("Unable to retrieve branch: %s\n", err)
 		}
-		fmt.Println(ref)
+
+		commit, err := r.CommitObject(ref.Hash())
+		if err != nil {
+			log.Fatalf("Unable to retrieve commit object: %s\n", err)
+		}
+		fmt.Println(commit)
+
+		// run command
+		// commit
+		// pull request
+		// add link to pr to collection and print
 	}
 
 }
