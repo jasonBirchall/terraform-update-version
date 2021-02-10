@@ -13,12 +13,12 @@ package main
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"os"
 
 	git "github.com/go-git/go-git"
+	"github.com/go-git/go-git/plumbing/transport/http"
 	"github.com/google/go-github/github"
 )
 
@@ -40,38 +40,66 @@ var ctx = context.Background()
 var url = "https://github.com/ministryofjustice/"
 
 func main() {
+	token := os.Getenv("GITHUB_AUTH_TOKEN")
+	if token == "" {
+		log.Fatal("Unauthorised: No token present")
+	}
+
 	repos, err := getRepos()
 	if err != nil {
 		log.Fatalf("Unable to find file: %s\n", err)
 	}
 
 	for _, repo := range repos {
-		// clone
-		fmt.Println(url + repo)
-		r, err := git.PlainClone("./", false, &git.CloneOptions{
-			URL:      url + repo,
+		r, err := git.PlainClone(repo, true, &git.CloneOptions{
+			// The intended use of a GitHub personal access token is in replace of your password
+			// because access tokens can easily be revoked.
+			// https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/
+			Auth: &http.BasicAuth{
+				Username: "jasonBirchall", // yes, this can be anything except an empty string
+				Password: token,
+			},
+			URL:      url + repos[0],
 			Progress: os.Stdout,
 		})
 		if err != nil {
 			log.Fatalf("Unable to clone repo: %s\n", err)
 		}
+		fmt.Println(r)
 
-		ref, err := r.Head()
-		if err != nil {
-			log.Fatalf("Unable to retrieve branch: %s\n", err)
-		}
-
-		commit, err := r.CommitObject(ref.Hash())
-		if err != nil {
-			log.Fatalf("Unable to retrieve commit object: %s\n", err)
-		}
-		fmt.Println(commit)
-
-		// run command
-		// commit
-		// pull request
-		// add link to pr to collection and print
 	}
+
+	// for _, repo := range repos {
+	// 	// clone
+	// 	fmt.Println(url + repo)
+	// 	r, err := git.PlainClone("./", false, &git.CloneOptions{
+	// 		Auth: &http.BasicAuth{
+	// 			Username: "jasonbirchall",
+	// 			Password: token,
+	// 		},
+	// 		URL:      url + repo,
+	// 		Progress: os.Stdout,
+	// 	})
+	// 	if err != nil {
+	// 		log.Fatalf("Unable to clone repo: %s\n", err)
+	// 	}
+
+	// 	ref, err := r.Head()
+	// 	if err != nil {
+	// 		log.Fatalf("Unable to retrieve branch: %s\n", err)
+	// 	}
+
+	// 	commit, err := r.CommitObject(ref.Hash())
+	// 	if err != nil {
+	// 		log.Fatalf("Unable to retrieve commit object: %s\n", err)
+	// 	}
+	// 	fmt.Println(commit)
+
+	// 	// run command
+	// 	// commit
+	// 	// pull request
+	// 	// add link to pr to collection and print
+	// }
 
 }
 
@@ -94,25 +122,25 @@ func getRepos() ([]string, error) {
 	return s, nil
 }
 
-func getRef(r string) (ref *github.Reference, err error) {
-	if ref, _, err := client.Git.GetRef(ctx, sourceOwner, r, "refs/heads/"+commitBranch); err == nil {
-		return ref, nil
-	}
+// func getRef(r string) (ref *github.Reference, err error) {
+// 	if ref, _, err := client.Git.GetRef(ctx, sourceOwner, r, "refs/heads/"+commitBranch); err == nil {
+// 		return ref, nil
+// 	}
 
-	if commitBranch == baseBranch {
-		return nil, errors.New("The commit branch does not exist but `-base-branch` is the same as `-commit-branch`")
-	}
+// 	if commitBranch == baseBranch {
+// 		return nil, errors.New("The commit branch does not exist but `-base-branch` is the same as `-commit-branch`")
+// 	}
 
-	if baseBranch == "" {
-		return nil, errors.New("The `base-branch` should not be set to an empty string when the branch specified by `commit-branch` does not exists")
-	}
+// 	if baseBranch == "" {
+// 		return nil, errors.New("The `base-branch` should not be set to an empty string when the branch specified by `commit-branch` does not exists")
+// 	}
 
-	var baseRef *github.Reference
-	if baseRef, _, err = client.Git.GetRef(ctx, sourceOwner, r, "refs/heads/"+baseBranch); err != nil {
-		return nil, err
-	}
-	newRef := &github.Reference{Ref: github.String("refs/heads/" + commitBranch), Object: &github.GitObject{SHA: baseRef.Object.SHA}}
-	ref, _, err = client.Git.CreateRef(ctx, sourceOwner, r, newRef)
+// 	var baseRef *github.Reference
+// 	if baseRef, _, err = client.Git.GetRef(ctx, sourceOwner, r, "refs/heads/"+baseBranch); err != nil {
+// 		return nil, err
+// 	}
+// 	newRef := &github.Reference{Ref: github.String("refs/heads/" + commitBranch), Object: &github.GitObject{SHA: baseRef.Object.SHA}}
+// 	ref, _, err = client.Git.CreateRef(ctx, sourceOwner, r, newRef)
 
-	return ref, err
-}
+// 	return ref, err
+// }
