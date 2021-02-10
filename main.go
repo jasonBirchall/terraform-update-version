@@ -17,9 +17,9 @@ import (
 	"log"
 	"os"
 
-	git "github.com/go-git/go-git"
 	"github.com/go-git/go-git/plumbing/transport/http"
-	"github.com/google/go-github/github"
+	git "github.com/go-git/go-git/v5"
+	"github.com/google/go-github/v33/github"
 )
 
 const file = "example"
