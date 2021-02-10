@@ -17,9 +17,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/go-git/go-git/plumbing/transport/http"
 	git "github.com/go-git/go-git/v5"
-	"github.com/google/go-github/v33/github"
+	// . "github.com/go-git/go-git/v5/_examples"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/google/go-github/github"
 )
 
 const file = "example"
@@ -59,7 +60,7 @@ func main() {
 				Username: "jasonBirchall", // yes, this can be anything except an empty string
 				Password: token,
 			},
-			URL:      url + repos[0],
+			URL:      url + repo,
 			Progress: os.Stdout,
 		})
 		if err != nil {
@@ -68,21 +69,6 @@ func main() {
 		fmt.Println(r)
 
 	}
-
-	// for _, repo := range repos {
-	// 	// clone
-	// 	fmt.Println(url + repo)
-	// 	r, err := git.PlainClone("./", false, &git.CloneOptions{
-	// 		Auth: &http.BasicAuth{
-	// 			Username: "jasonbirchall",
-	// 			Password: token,
-	// 		},
-	// 		URL:      url + repo,
-	// 		Progress: os.Stdout,
-	// 	})
-	// 	if err != nil {
-	// 		log.Fatalf("Unable to clone repo: %s\n", err)
-	// 	}
 
 	// 	ref, err := r.Head()
 	// 	if err != nil {
@@ -121,26 +107,3 @@ func getRepos() ([]string, error) {
 	}
 	return s, nil
 }
-
-// func getRef(r string) (ref *github.Reference, err error) {
-// 	if ref, _, err := client.Git.GetRef(ctx, sourceOwner, r, "refs/heads/"+commitBranch); err == nil {
-// 		return ref, nil
-// 	}
-
-// 	if commitBranch == baseBranch {
-// 		return nil, errors.New("The commit branch does not exist but `-base-branch` is the same as `-commit-branch`")
-// 	}
-
-// 	if baseBranch == "" {
-// 		return nil, errors.New("The `base-branch` should not be set to an empty string when the branch specified by `commit-branch` does not exists")
-// 	}
-
-// 	var baseRef *github.Reference
-// 	if baseRef, _, err = client.Git.GetRef(ctx, sourceOwner, r, "refs/heads/"+baseBranch); err != nil {
-// 		return nil, err
-// 	}
-// 	newRef := &github.Reference{Ref: github.String("refs/heads/" + commitBranch), Object: &github.GitObject{SHA: baseRef.Object.SHA}}
-// 	ref, _, err = client.Git.CreateRef(ctx, sourceOwner, r, newRef)
-
-// 	return ref, err
-// }

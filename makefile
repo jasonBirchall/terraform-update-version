@@ -1,5 +1,5 @@
 IMAGE := json0/terraform-upgrade
-VERSION := 0.0.1
+VERSION := 0.0.2
 TAGGED_IMAGE := $(IMAGE):$(VERSION)
 
 build: .built-docker-image
@@ -36,3 +36,6 @@ run:
 							-v $${HOME}/.ssh:/root/.ssh \
 							-w /app \
 							$(TAGGED_IMAGE) go run main.go
+
+clean:
+	rm -rf cloud-platform-*
