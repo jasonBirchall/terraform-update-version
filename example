@@ -1,6 +1,6 @@
-cloud-platform-terraform-kube2iam
-cloud-platform-dms
+cloud-platform-terraform-dms
 cloud-platform-terraform-gitops
 cloud-platform-terraform-spinaker
 cloud-platform-terraform-eventbridge
 cloud-platform-terraform-codepipeline-spike
+cloud-platform-terraform-kube2iam
