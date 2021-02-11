@@ -13,6 +13,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"log"
 	"os"
 
@@ -88,6 +89,14 @@ func executeCommand(repo string) error {
 	return nil
 }
 func cloneRepo(repo, token, user string) error {
+	cmd := execute.ExecTask{
+		Command:     "git",
+		Args:        []string{"commit", "-m", "Add file"},
+		StreamStdio: false,
+	}
+
+	fmt.Println("Start")
+
 	r, err := git.PlainClone(repo, false, &git.CloneOptions{
 		Auth: &http.BasicAuth{
 			Username: user,
@@ -96,16 +105,13 @@ func cloneRepo(repo, token, user string) error {
 		URL: url + repo,
 	})
 	if err != nil {
+		fmt.Println("clone")
 		return err
-		// if err == git.ErrRepositoryAlreadyExists {
-		// 	fmt.Println("repo was already cloned")
-		// } else {
-		// 	return err
-		// }
 	}
 
 	w, err := r.Worktree()
 	if err != nil {
+		fmt.Println("worktree")
 		return err
 	}
 
@@ -126,6 +132,8 @@ func cloneRepo(repo, token, user string) error {
 		return err
 	}
 
+	fmt.Println("Add")
+	// fmt.Println(ls)
 	// Add to staging
 	err = w.AddWithOptions(&git.AddOptions{
 		All:  true,
@@ -135,21 +143,34 @@ func cloneRepo(repo, token, user string) error {
 		return err
 	}
 
-	// git commit -m $message
-	w.Commit("Added my new file", &git.CommitOptions{})
-	// commit, err := w.Commit("Added my new file", &git.CommitOptions{
-	// 	All: true,
-	// })
+	// os.Chdir(repo)
+	// _, err = os.Getwd()
 	// if err != nil {
 	// 	return err
 	// }
+	os.Chdir("./cloud-platform-terraform-dms")
+	newDir, err := os.Getwd()
+	if err != nil {
+		fmt.Println("failed to chdir")
+		return err
+	}
+	fmt.Printf("Current Working Direcotry: %s\n", newDir)
 
-	// obj, err := r.CommitObject(commit)
+	fmt.Println("commit")
+	_, err = cmd.Execute()
+	if err != nil {
+		fmt.Println("execute")
+		return err
+	}
+	// _, err = w.Commit("example go-git commit", &git.CommitOptions{})
+	// // _, err = w.Commit("blah", &git.CommitOptions{
+	// // All: true,
+	// // })
 	// if err != nil {
+	// 	fmt.Println("commit err")
 	// 	return err
 	// }
 
-	// fmt.Println(obj)
 	// status, _ := w.Status()
 
 	// fmt.Println(status)
