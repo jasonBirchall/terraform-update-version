@@ -55,13 +55,9 @@ func main() {
 	for _, repo := range repos {
 		err := cloneRepo(repo, token, user)
 		if err != nil {
-			log.Fatalf("Unable to clone repository: %s\n", err)
+			log.Fatalf("Issue detected: %s\n", err)
 		}
 
-		err = executeCommand(repo)
-		if err != nil {
-			log.Fatalf("Unable to execute command: %s\n", err)
-		}
 	}
 }
 
@@ -91,30 +87,21 @@ func executeCommand(repo string) error {
 
 	return nil
 }
-
 func cloneRepo(repo, token, user string) error {
 	r, err := git.PlainClone(repo, false, &git.CloneOptions{
 		Auth: &http.BasicAuth{
-			Username: user, // yes, this can be anything except an empty string
+			Username: user,
 			Password: token,
 		},
 		URL: url + repo,
-		// Progress: os.Stdout,
 	})
 	if err != nil {
 		return err
-	}
-
-	headRef, err := r.Head()
-	if err != nil {
-		return err
-	}
-
-	ref := plumbing.NewHashReference("refs/heads/tf-0.13upgrade", headRef.Hash())
-
-	err = r.Storer.SetReference(ref)
-	if err != nil {
-		return err
+		// if err == git.ErrRepositoryAlreadyExists {
+		// 	fmt.Println("repo was already cloned")
+		// } else {
+		// 	return err
+		// }
 	}
 
 	w, err := r.Worktree()
@@ -122,21 +109,63 @@ func cloneRepo(repo, token, user string) error {
 		return err
 	}
 
+	branch := "refs/heads/tf-0.13upgrade"
+	b := plumbing.ReferenceName(branch)
+
 	err = w.Checkout(&git.CheckoutOptions{
-		Hash: plumbing.NewHash(ref),
+		Create: true,
+		Force:  false,
+		Branch: b,
 	})
 	if err != nil {
 		return err
 	}
 
+	err = executeCommand(repo)
+	if err != nil {
+		return err
+	}
+
+	// Add to staging
+	err = w.AddWithOptions(&git.AddOptions{
+		All:  true,
+		Glob: ".",
+	})
+	if err != nil {
+		return err
+	}
+
+	// git commit -m $message
+	w.Commit("Added my new file", &git.CommitOptions{})
+	// commit, err := w.Commit("Added my new file", &git.CommitOptions{
+	// 	All: true,
+	// })
+	// if err != nil {
+	// 	return err
+	// }
+
+	// obj, err := r.CommitObject(commit)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// fmt.Println(obj)
+	// status, _ := w.Status()
+
+	// fmt.Println(status)
+
+	// Commits the current staging area to the repository, with the new file
+	// just created. We should provide the object.Signature of Author of the
+	// commit Since version 5.0.1, we can omit the Author signature, being read
+	// from the git config files.
+	// commit, err := w.Commit("example go-git commit", &git.CommitOptions{})
+
+	// // Prints the current HEAD to verify that all worked well.
+	// obj, _ := r.CommitObject(commit)
+
+	// fmt.Println(obj)
 	return nil
 }
-
-// 	// run command
-// 	// commit
-// 	// pull request
-// 	// add link to pr to collection and print
-// }
 
 func getRepos() ([]string, error) {
 	var s []string
