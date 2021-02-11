@@ -26,7 +26,8 @@ shell:
 	-e GITHUB_AUTH_TOKEN=$${GITHUB_AUTH_TOKEN} \
 	-e GITHUB_AUTH_USER=$${GITHUB_AUTH_USER} \
 							-v $$(pwd):/app \
-							-v $${HOME}/.ssh:/root/.ssh \
+							-v $${HOME}/.ssh:$${HOME}/.ssh \
+							-v $${HOME}/.gitconfig:$${HOME}/.gitconfig \
 							-w /app \
 							$(TAGGED_IMAGE) bash
 
