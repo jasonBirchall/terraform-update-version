@@ -13,8 +13,10 @@ package main
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	execute "github.com/alexellis/go-execute/pkg/v1"
 	git "github.com/go-git/go-git/v5"
@@ -23,22 +25,14 @@ import (
 	"github.com/google/go-github/github"
 )
 
-const file = "example"
-
 var (
-	commitMessage = "Run Terraform 0.13 upgrade tool on repository"
-	commitBranch  = "terraform-0.13-upgrade"
-	sourceOwner   = "ministryofjustice"
-	baseBranch    = "main"
-	prSubject     = "Upgrade Terraform to 0.13.x"
-	prDescription = "This PR contains the relevant changes required to upgrade the repository Terraform code to 0.13.x"
-	authorName    = "jasonbirchall"
-	authorEmail   = "jason.birchall@digital.justice.gov.uk"
+	file          = "example"
+	client        *github.Client
+	ctx           = context.Background()
+	url           = "https://github.com/ministryofjustice/"
+	commitSummary = "Evaluate the repository with terraform0.13upgrade binary"
+	commitBody    = "In our vision to upgrade Terraform to 0.13, we will need to run this binary over any Terraform files in our repository."
 )
-
-var client *github.Client
-var ctx = context.Background()
-var url = "https://github.com/ministryofjustice/"
 
 func main() {
 	token := os.Getenv("GITHUB_AUTH_TOKEN")
@@ -53,7 +47,7 @@ func main() {
 	}
 
 	for _, repo := range repos {
-		err := cloneRepo(repo, token, user)
+		err := performUpgrade(repo, token, user)
 		if err != nil {
 			log.Fatalf("Issue detected: %s\n", err)
 		}
@@ -61,33 +55,111 @@ func main() {
 	}
 }
 
-func executeCommand(repo string) error {
+func exeUpgrade() error {
 	cmd := execute.ExecTask{
 		Command:     "terraform",
 		Args:        []string{"0.13upgrade", "--yes"},
 		StreamStdio: false,
 	}
 
-	os.Chdir(repo)
-	_, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-
-	_, err = cmd.Execute()
-	if err != nil {
-		return err
-	}
-
-	os.Chdir("..")
-	_, err = os.Getwd()
+	_, err := cmd.Execute()
 	if err != nil {
 		return err
 	}
 
 	return nil
 }
-func cloneRepo(repo, token, user string) error {
+
+func chDir(path string) error {
+	os.Chdir(path)
+	_, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func tfBinary(repo string) error {
+	dirs, err := walkMatch(repo)
+	if err != nil {
+		return err
+	}
+
+	for _, dir := range dirs {
+		err = chDir(dir)
+		if err != nil {
+			return err
+		}
+
+		err = exeUpgrade()
+		if err != nil {
+			return err
+		}
+
+		err = chDir("/app")
+		if err != nil {
+			return err
+		}
+
+	}
+	return nil
+}
+
+func walkMatch(start string) ([]string, error) {
+	var dirs []string
+	err := filepath.Walk(start,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() {
+				dirs = append(dirs, path)
+			}
+			return nil
+		})
+	if err != nil {
+		return nil, err
+	}
+	return dirs, nil
+}
+func commit() error {
+	commit := execute.ExecTask{
+		Command:     "git",
+		Args:        []string{"commit", "-m", commitSummary, "-m", ""},
+		StreamStdio: false,
+	}
+
+	_, err := commit.Execute()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func push() error {
+	push := execute.ExecTask{
+		Command:     "git",
+		Args:        []string{"push", "--set-upstream", "origin", "tf-0.13upgrade"},
+		StreamStdio: true,
+	}
+
+	_, err := push.Execute()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func performUpgrade(repo, token, user string) error {
+
+	pr := execute.ExecTask{
+		Command:     "gh",
+		Args:        []string{"pr", "create", "-t", "Terraform 0.13upgrade", "-b", "Run Terraform 0.13 upgrade tool against repo"},
+		StreamStdio: true,
+	}
+
 	r, err := git.PlainClone(repo, false, &git.CloneOptions{
 		Auth: &http.BasicAuth{
 			Username: user,
@@ -97,15 +169,11 @@ func cloneRepo(repo, token, user string) error {
 	})
 	if err != nil {
 		return err
-		// if err == git.ErrRepositoryAlreadyExists {
-		// 	fmt.Println("repo was already cloned")
-		// } else {
-		// 	return err
-		// }
 	}
 
 	w, err := r.Worktree()
 	if err != nil {
+		fmt.Println("worktree")
 		return err
 	}
 
@@ -121,12 +189,11 @@ func cloneRepo(repo, token, user string) error {
 		return err
 	}
 
-	err = executeCommand(repo)
+	err = tfBinary(repo)
 	if err != nil {
 		return err
 	}
 
-	// Add to staging
 	err = w.AddWithOptions(&git.AddOptions{
 		All:  true,
 		Glob: ".",
@@ -135,35 +202,32 @@ func cloneRepo(repo, token, user string) error {
 		return err
 	}
 
-	// git commit -m $message
-	w.Commit("Added my new file", &git.CommitOptions{})
-	// commit, err := w.Commit("Added my new file", &git.CommitOptions{
-	// 	All: true,
-	// })
-	// if err != nil {
-	// 	return err
-	// }
+	err = chDir(repo)
+	if err != nil {
+		return err
+	}
 
-	// obj, err := r.CommitObject(commit)
-	// if err != nil {
-	// 	return err
-	// }
+	err = commit()
+	if err != nil {
+		return err
+	}
 
-	// fmt.Println(obj)
-	// status, _ := w.Status()
+	err = push()
+	if err != nil {
+		return err
+	}
 
-	// fmt.Println(status)
+	_, err = pr.Execute()
+	if err != nil {
+		return err
+	}
 
-	// Commits the current staging area to the repository, with the new file
-	// just created. We should provide the object.Signature of Author of the
-	// commit Since version 5.0.1, we can omit the Author signature, being read
-	// from the git config files.
-	// commit, err := w.Commit("example go-git commit", &git.CommitOptions{})
+	os.Chdir("..")
+	_, err = os.Getwd()
+	if err != nil {
+		return err
+	}
 
-	// // Prints the current HEAD to verify that all worked well.
-	// obj, _ := r.CommitObject(commit)
-
-	// fmt.Println(obj)
 	return nil
 }
 
