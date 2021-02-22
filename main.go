@@ -32,9 +32,13 @@ var (
 	url           = "https://github.com/ministryofjustice/"
 	commitSummary = "Evaluate the repository with terraform0.13upgrade binary"
 	commitBody    = "In our vision to upgrade Terraform to 0.13, we will need to run this binary over any Terraform files in our repository."
+	prSummary     = "Terraform 0.13 upgrade for repository"
+	prBody        = "This PR contains all changes in this repository made by the command `terraform 0.13upgrade` tool."
 )
 
 func main() {
+	var s, f []string
+
 	token := os.Getenv("GITHUB_AUTH_TOKEN")
 	user := os.Getenv("GITHUB_AUTH_USER")
 	if token == "" || user == "" {
@@ -47,15 +51,26 @@ func main() {
 	}
 
 	for _, repo := range repos {
-		err := performUpgrade(repo, token, user)
+		err := gitCreate(repo, token, user)
 		if err != nil {
-			log.Fatalf("Issue detected: %s\n", err)
+			log.Printf("Issue creating git repo or branch: %s\n", err)
+		}
+
+		err = gitPush()
+		if err != nil {
+			f = append(f, repo)
+			log.Printf("Issue pushing, pulling or PR: %s\n", err)
+		} else {
+			s = append(s, repo)
 		}
 
 	}
+
+	fmt.Println("Sucessful repos:", s)
+	fmt.Println("Failed repos:", f)
 }
 
-func exeUpgrade() error {
+func tfUpgrade() error {
 	cmd := execute.ExecTask{
 		Command:     "terraform",
 		Args:        []string{"0.13upgrade", "--yes"},
@@ -80,7 +95,7 @@ func chDir(path string) error {
 	return nil
 }
 
-func tfBinary(repo string) error {
+func walkExecute(repo string) error {
 	dirs, err := walkMatch(repo)
 	if err != nil {
 		return err
@@ -92,7 +107,7 @@ func tfBinary(repo string) error {
 			return err
 		}
 
-		err = exeUpgrade()
+		err = tfUpgrade()
 		if err != nil {
 			return err
 		}
@@ -123,10 +138,11 @@ func walkMatch(start string) ([]string, error) {
 	}
 	return dirs, nil
 }
+
 func commit() error {
 	commit := execute.ExecTask{
 		Command:     "git",
-		Args:        []string{"commit", "-m", commitSummary, "-m", ""},
+		Args:        []string{"commit", "-m", commitSummary, "-m", commitBody},
 		StreamStdio: false,
 	}
 
@@ -152,14 +168,46 @@ func push() error {
 	return nil
 }
 
-func performUpgrade(repo, token, user string) error {
-
+func pullRequest() error {
 	pr := execute.ExecTask{
 		Command:     "gh",
-		Args:        []string{"pr", "create", "-t", "Terraform 0.13upgrade", "-b", "Run Terraform 0.13 upgrade tool against repo"},
+		Args:        []string{"pr", "create", "-t", prSummary, "-b", prBody},
 		StreamStdio: true,
 	}
 
+	_, err := pr.Execute()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func gitPush() error {
+	err := commit()
+	if err != nil {
+		return err
+	}
+
+	err = push()
+	if err != nil {
+		return err
+	}
+
+	err = pullRequest()
+	if err != nil {
+		return err
+	}
+
+	err = chDir("..")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func gitCreate(repo, token, user string) error {
 	r, err := git.PlainClone(repo, false, &git.CloneOptions{
 		Auth: &http.BasicAuth{
 			Username: user,
@@ -189,7 +237,7 @@ func performUpgrade(repo, token, user string) error {
 		return err
 	}
 
-	err = tfBinary(repo)
+	err = walkExecute(repo)
 	if err != nil {
 		return err
 	}
@@ -203,27 +251,6 @@ func performUpgrade(repo, token, user string) error {
 	}
 
 	err = chDir(repo)
-	if err != nil {
-		return err
-	}
-
-	err = commit()
-	if err != nil {
-		return err
-	}
-
-	err = push()
-	if err != nil {
-		return err
-	}
-
-	_, err = pr.Execute()
-	if err != nil {
-		return err
-	}
-
-	os.Chdir("..")
-	_, err = os.Getwd()
 	if err != nil {
 		return err
 	}
