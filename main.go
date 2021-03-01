@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 
+	// "github.com/jasonbirchall/terraform-update-version/pkg/helper"
 	execute "github.com/alexellis/go-execute/pkg/v1"
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -51,6 +52,7 @@ func main() {
 	}
 
 	for _, repo := range repos {
+		fmt.Println("--- Starting", repo)
 		err := gitCreate(repo, token, user)
 		if err != nil {
 			log.Printf("Issue creating git repo or branch: %s\n", err)
@@ -64,16 +66,56 @@ func main() {
 			s = append(s, repo)
 		}
 
+		fmt.Println("--- Finishing", repo)
+
+		err = remove(repo)
+		if err != nil {
+			log.Printf("Error deleting the dir: %s", err)
+		}
+
 	}
 
 	fmt.Println("Sucessful repos:", s)
 	fmt.Println("Failed repos:", f)
 }
 
+func walkMatch(start string) ([]string, error) {
+	var dirs []string
+	err := filepath.Walk(start,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() {
+				dirs = append(dirs, path)
+			}
+			return nil
+		})
+	if err != nil {
+		return nil, err
+	}
+	return dirs, nil
+}
+
 func tfUpgrade() error {
 	cmd := execute.ExecTask{
-		Command:     "terraform",
+		Command:     "terraform0.13",
 		Args:        []string{"0.13upgrade", "--yes"},
+		StreamStdio: false,
+	}
+
+	_, err := cmd.Execute()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func remove(r string) error {
+	cmd := execute.ExecTask{
+		Command:     "rm",
+		Args:        []string{"-rf", r},
 		StreamStdio: false,
 	}
 
@@ -121,24 +163,6 @@ func walkExecute(repo string) error {
 	return nil
 }
 
-func walkMatch(start string) ([]string, error) {
-	var dirs []string
-	err := filepath.Walk(start,
-		func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if info.IsDir() {
-				dirs = append(dirs, path)
-			}
-			return nil
-		})
-	if err != nil {
-		return nil, err
-	}
-	return dirs, nil
-}
-
 func commit() error {
 	commit := execute.ExecTask{
 		Command:     "git",
@@ -156,7 +180,7 @@ func commit() error {
 func push() error {
 	push := execute.ExecTask{
 		Command:     "git",
-		Args:        []string{"push", "--set-upstream", "origin", "tf-0.13upgrade"},
+		Args:        []string{"push", "--set-upstream", "origin", "tf-0.13"},
 		StreamStdio: true,
 	}
 
@@ -225,7 +249,7 @@ func gitCreate(repo, token, user string) error {
 		return err
 	}
 
-	branch := "refs/heads/tf-0.13upgrade"
+	branch := "refs/heads/tf-0.13"
 	b := plumbing.ReferenceName(branch)
 
 	err = w.Checkout(&git.CheckoutOptions{

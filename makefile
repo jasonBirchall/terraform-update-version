@@ -1,5 +1,5 @@
 IMAGE := json0/terraform-upgrade
-VERSION := 0.0.5
+VERSION := 0.0.7
 TAGGED_IMAGE := $(IMAGE):$(VERSION)
 
 build: .built-docker-image
@@ -25,12 +25,13 @@ shell:
 			docker run --rm -it \
 	-e GITHUB_AUTH_TOKEN=$${GITHUB_AUTH_TOKEN} \
 	-e GITHUB_AUTH_USER=$${GITHUB_AUTH_USER} \
-	-e SSH_AUTH_SOCK=$SSH_AUTH_SOCK \
+	-e TERRAFORM_VERSION=$${TERRAFORM_VERSION} \
+	-e SSH_AUTH_SOCK=$${SSH_AUTH_SOCK} \
 							-v $$(pwd):/app \
 							-v $${HOME}/.ssh:$${HOME}/.ssh \
 							-v $${HOME}/.gitconfig:$${HOME}/.gitconfig \
 							-v $${HOME}/.config/gh:$${HOME}/.config/gh \
-							-v $(dirname $SSH_AUTH_SOCK):$(dirname $SSH_AUTH_SOCK) \
+							-v $${SSH_AUTH_SOCK}:$${SSH_AUTH_SOCK} \
 							-w /app \
 							$(TAGGED_IMAGE) bash
 
