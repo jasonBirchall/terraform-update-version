@@ -13,15 +13,10 @@ curl \
 unzip \
 openssh-client
 
-COPY --from=hashicorp/terraform:0.13.6 /bin/terraform /usr/local/bin/
+COPY --from=hashicorp/terraform:0.13.6 /bin/terraform /usr/local/bin/terraform0.13
+COPY --from=hashicorp/terraform:0.14.7 /bin/terraform /usr/local/bin/terraform0.14
 COPY --from=gh gh_0.5.7_linux_amd64/bin/gh /usr/bin/gh
 
-# RUN curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
-# RUN apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
-# RUN apt-get update && sudo apt-get install terraform
-
-# Install terraform
-# RUN curl -sL https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip | unzip -d /usr/local/bin -
 RUN adduser \
 --disabled-password \
 --gecos "" \
@@ -31,6 +26,7 @@ WORKDIR /app
 RUN chown -R json /app
 
 COPY . .
+RUN eval "$(ssh-agent -s)"
 
 USER json
 
@@ -38,4 +34,3 @@ RUN go get -d -v ./...
 
 RUN go install -v ./...
 
-RUN eval "$(ssh-agent -s)"
