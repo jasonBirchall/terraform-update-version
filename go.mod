@@ -1,4 +1,4 @@
-module github.com/jasonBirchall/terraform-update-version
+module github.com/jasonbirchall/terraform-update-version
 
 go 1.15
 
