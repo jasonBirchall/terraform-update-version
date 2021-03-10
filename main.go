@@ -18,23 +18,22 @@ import (
 	"os"
 	"path/filepath"
 
-	// "github.com/jasonbirchall/terraform-update-version/pkg/helper"
 	execute "github.com/alexellis/go-execute/pkg/v1"
-	git "github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/google/go-github/github"
 )
 
-var (
-	file          = "example"
-	client        *github.Client
-	ctx           = context.Background()
+const (
+	file          = "repositories"
 	url           = "https://github.com/ministryofjustice/"
 	commitSummary = "Evaluate the repository with terraform0.13upgrade binary"
 	commitBody    = "In our vision to upgrade Terraform to 0.13, we will need to run this binary over any Terraform files in our repository."
 	prSummary     = "Terraform 0.13 upgrade for repository"
 	prBody        = "This PR contains all changes in this repository made by the command `terraform 0.13upgrade` tool."
+)
+
+var (
+	client *github.Client
+	ctx    = context.Background()
 )
 
 func main() {
@@ -224,57 +223,6 @@ func gitPush() error {
 	}
 
 	err = chDir("..")
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func gitCreate(repo, token, user string) error {
-	r, err := git.PlainClone(repo, false, &git.CloneOptions{
-		Auth: &http.BasicAuth{
-			Username: user,
-			Password: token,
-		},
-		URL: url + repo,
-	})
-	if err != nil {
-		return err
-	}
-
-	w, err := r.Worktree()
-	if err != nil {
-		fmt.Println("worktree")
-		return err
-	}
-
-	branch := "refs/heads/tf-0.13"
-	b := plumbing.ReferenceName(branch)
-
-	err = w.Checkout(&git.CheckoutOptions{
-		Create: true,
-		Force:  false,
-		Branch: b,
-	})
-	if err != nil {
-		return err
-	}
-
-	err = walkExecute(repo)
-	if err != nil {
-		return err
-	}
-
-	err = w.AddWithOptions(&git.AddOptions{
-		All:  true,
-		Glob: ".",
-	})
-	if err != nil {
-		return err
-	}
-
-	err = chDir(repo)
 	if err != nil {
 		return err
 	}
