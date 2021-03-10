@@ -1,6 +1,6 @@
 module github.com/jasonbirchall/terraform-update-version
 
-go 1.15
+go 1.16
 
 require (
 	github.com/alexellis/go-execute v0.0.0-20201205082949-69a2cde04f4f
